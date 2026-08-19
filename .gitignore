@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
+# SPDX-License-Identifier: CC0-1.0
+
+.idea
+.DS_Store
+
+# build output
+/js
+
+# 3rdparty
+node_modules/
+/vendor
+/vendor-bin/*/vendor
+
+# cache
+/.php-cs-fixer.cache
+/tests/.phpunit.result.cache
+/.phpunit.cache
+
+# local tooling
+/.claude
