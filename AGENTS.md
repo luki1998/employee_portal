@@ -220,3 +220,15 @@ to mount at all in jsdom.
 
 No `eslint.config.js` yet, so `src/` is unlinted beyond what Vite's own
 `@vue/compiler-sfc` warns about at build time.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live on GitHub at `luki1998/employee_portal` (this app's own repo — see
+"Issue tracking exception" above). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at this app's root. See
+`docs/agents/domain.md`.
