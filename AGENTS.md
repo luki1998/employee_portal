@@ -9,6 +9,24 @@ This file is scoped to `apps-extra/employee_portal`. The repository-wide
 [AGENTS.md](../../AGENTS.md) still applies in full (commit format, DCO, license
 headers, security reporting) — this file only adds what's specific to this app.
 
+## Issue tracking exception
+
+The root AGENTS.md's "never open issues/PRs autonomously" rule was written to
+protect the real `nextcloud/server` tracker from unreviewed AI contributions.
+It does not fit this app's own tracker: `apps-extra/employee_portal` is a
+separate git repository with its own remote,
+[`github.com/luki1998/employee_portal`](https://github.com/luki1998/employee_portal)
+— the app author's personal repo, not an upstream Nextcloud contribution
+surface.
+
+For issues on `luki1998/employee_portal` specifically, agents may call
+`gh issue create` (and other `gh issue` operations scoped to that repo)
+autonomously. Everything else the root AGENTS.md governs — pull requests,
+DCO, license headers, commit format, security reporting via HackerOne — is
+unchanged and still requires human action, on this repo exactly as on
+`nextcloud/server`. This exception does not extend to `nextcloud/server` or
+any other Nextcloud-org repository.
+
 ## What this app is
 
 A SharePoint-style intranet: `.md` files in a single top-level `EmployeePortal`

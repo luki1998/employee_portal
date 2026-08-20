@@ -46,3 +46,18 @@ Someone with access to a specific Site, granted by a direct share of that
 Site's folder rather than any access to the portal folder itself. A Site
 member cannot browse the portal folder to discover other Sites — the Sites
 they can see are exactly the ones directly shared with them.
+
+**Webpart type**:
+A registered, installable *kind* of Webpart — what defines how a Webpart
+behaves and renders, independent of any particular Page. `richtext` is
+currently the only Webpart type; the plugin work this app is heading toward
+is about letting more Webpart types exist, including ones an instance admin
+installs themselves rather than ones bundled with this app.
+_Avoid_: Widget type, widget definition
+
+**Webpart instance**:
+One placement of a Webpart type on a specific Page — the thing that actually
+lives in a Column, carrying that placement's own content or configuration
+(for a `richtext` instance, its `html`). Usually just called a "Webpart"
+when the distinction from its type doesn't matter.
+_Avoid_: Widget, widget instance
