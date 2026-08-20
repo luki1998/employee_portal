@@ -44,36 +44,60 @@ describe('pages service', () => {
 
 	describe('fetchPage', () => {
 		it('requests the single page URL and unwraps the OCS envelope', async () => {
-			const page = { path: 'welcome.md', title: 'welcome', content: '# Hi' }
+			const page = { path: 'General/welcome.md', title: 'welcome', content: '# Hi' }
 			axios.get.mockResolvedValue(ocsResponse(page))
 
-			const result = await fetchPage('welcome.md')
+			const result = await fetchPage('General/welcome.md')
 
-			expect(axios.get).toHaveBeenCalledWith(expect.stringMatching(/\/pages\/welcome\.md$/))
+			expect(axios.get).toHaveBeenCalledWith(expect.stringMatching(/\/pages\/General\/welcome\.md$/))
 			expect(result).toBe(page)
 		})
 
-		it('URL-encodes the path', async () => {
+		it('joins the Site and page segments with a literal slash, not an encoded one', async () => {
 			axios.get.mockResolvedValue(ocsResponse({}))
 
-			await fetchPage('my notes.md')
+			await fetchPage('General/welcome.md')
 
-			expect(axios.get).toHaveBeenCalledWith(expect.stringMatching(/\/pages\/my%20notes\.md$/))
+			const [url] = axios.get.mock.calls[0]
+			expect(url).not.toContain('%2F')
+			expect(url).toMatch(/\/pages\/General\/welcome\.md$/)
+		})
+
+		it('URL-encodes the site and page segments independently', async () => {
+			axios.get.mockResolvedValue(ocsResponse({}))
+
+			await fetchPage('My Site/my notes.md')
+
+			expect(axios.get).toHaveBeenCalledWith(expect.stringMatching(/\/pages\/My%20Site\/my%20notes\.md$/))
+		})
+
+		it('rejects a path without a site/page separator instead of silently mis-splitting it', async () => {
+			await expect(fetchPage('welcome.md')).rejects.toThrow('Pages must be addressed as site/page.md')
+			expect(axios.get).not.toHaveBeenCalled()
 		})
 	})
 
 	describe('savePage', () => {
 		it('PUTs the content to the page URL and unwraps the OCS envelope', async () => {
-			const page = { path: 'welcome.md', title: 'welcome' }
+			const page = { path: 'General/welcome.md', title: 'welcome' }
 			axios.put.mockResolvedValue(ocsResponse(page))
 
-			const result = await savePage('welcome.md', '# Hello world')
+			const result = await savePage('General/welcome.md', '# Hello world')
 
 			expect(axios.put).toHaveBeenCalledWith(
-				expect.stringMatching(/\/pages\/welcome\.md$/),
+				expect.stringMatching(/\/pages\/General\/welcome\.md$/),
 				{ content: '# Hello world' },
 			)
 			expect(result).toBe(page)
+		})
+
+		it('joins the Site and page segments with a literal slash, not an encoded one', async () => {
+			axios.put.mockResolvedValue(ocsResponse({}))
+
+			await savePage('General/welcome.md', '# Hello world')
+
+			const [url] = axios.put.mock.calls[0]
+			expect(url).not.toContain('%2F')
 		})
 	})
 })
