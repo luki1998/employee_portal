@@ -55,14 +55,16 @@ describe('PageLayoutViewer', () => {
 		expect(wrapper.get('.page-layout__row').attributes('style')).toContain('grid-template-columns: 1fr 2fr')
 	})
 
-	it('shows a fallback notice for an unsupported webpart type', () => {
+	it('shows a placeholder for an unregistered webpart type, preserving its raw data', () => {
+		const webpart = { id: 'wp-1', type: 'unknown-type', data: { foo: 'bar' } }
 		const layout = {
 			version: 1,
-			rows: [{ id: 'row-1', columns: [{ id: 'col-1', webparts: [{ id: 'wp-1', type: 'unknown-type' }] }] }],
+			rows: [{ id: 'row-1', columns: [{ id: 'col-1', webparts: [webpart] }] }],
 		}
 
 		const wrapper = mount(PageLayoutViewer, { props: { layout } })
 
-		expect(wrapper.get('.page-layout__unsupported').text()).toBe('This content type is not supported.')
+		expect(wrapper.get('.webpart-instance__placeholder--unregistered').exists()).toBe(true)
+		expect(webpart.data).toEqual({ foo: 'bar' })
 	})
 })

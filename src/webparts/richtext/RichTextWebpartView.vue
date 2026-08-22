@@ -8,13 +8,13 @@ import dompurify from 'dompurify'
 import { computed } from 'vue'
 
 const props = defineProps({
-	html: {
-		type: String,
-		default: '',
+	data: {
+		type: Object,
+		default: () => ({ html: '' }),
 	},
 })
 
-const sanitized = computed(() => dompurify.sanitize(props.html))
+const sanitized = computed(() => dompurify.sanitize(props.data.html ?? ''))
 </script>
 
 <template>

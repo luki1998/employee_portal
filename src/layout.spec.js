@@ -8,8 +8,10 @@ import {
 	addWebpart,
 	convertMarkdownToLayout,
 	createEmptyLayout,
+	createRichTextWebpart,
 	createRow,
 	getGridTemplateColumns,
+	getWebpartData,
 	MAX_COLUMNS,
 	moveRow,
 	parseLayout,
@@ -18,6 +20,7 @@ import {
 	serializeLayout,
 	setColumnCount,
 	setColumnWidths,
+	setWebpartData,
 } from './layout.js'
 
 describe('parseLayout', () => {
@@ -65,8 +68,36 @@ describe('convertMarkdownToLayout', () => {
 		expect(layout.rows).toHaveLength(1)
 		expect(layout.rows[0].columns).toHaveLength(1)
 		expect(layout.rows[0].columns[0].webparts).toEqual([
-			expect.objectContaining({ type: 'richtext', html: '<h1># Hi</h1>' }),
+			expect.objectContaining({ type: 'richtext', data: { html: '<h1># Hi</h1>' } }),
 		])
+	})
+})
+
+describe('getWebpartData / setWebpartData', () => {
+	it('reads the data field when present', () => {
+		const webpart = createRichTextWebpart('<p>Hi</p>')
+
+		expect(getWebpartData(webpart)).toEqual({ html: '<p>Hi</p>' })
+	})
+
+	it('reads a legacy bare-html richtext instance as data: {html}', () => {
+		const webpart = { id: 'wp-1', type: 'richtext', html: '<p>Legacy</p>' }
+
+		expect(getWebpartData(webpart)).toEqual({ html: '<p>Legacy</p>' })
+	})
+
+	it('falls back to an empty object for an unrecognized legacy shape', () => {
+		const webpart = { id: 'wp-1', type: 'unknown-type' }
+
+		expect(getWebpartData(webpart)).toEqual({})
+	})
+
+	it('sets the data field', () => {
+		const webpart = createRichTextWebpart('<p>Old</p>')
+
+		setWebpartData(webpart, { html: '<p>New</p>' })
+
+		expect(webpart.data).toEqual({ html: '<p>New</p>' })
 	})
 })
 

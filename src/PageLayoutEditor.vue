@@ -8,8 +8,8 @@ import { mdiCog, mdiDelete, mdiPlus, mdiTextBoxPlusOutline } from '@mdi/js'
 import { t } from '@nextcloud/l10n'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
-import { addRow, addWebpart, getGridTemplateColumns, removeWebpart } from './layout.js'
-import { webpartTypes } from './webparts/registry.js'
+import { addRow, addWebpart, getGridTemplateColumns, removeWebpart, setWebpartData } from './layout.js'
+import WebpartInstance from './webparts/WebpartInstance.vue'
 
 const props = defineProps({
 	modelValue: {
@@ -47,6 +47,15 @@ function handleRemoveWebpart(row, column, webpart) {
 	removeWebpart(props.modelValue, row.id, column.id, webpart.id)
 	emit('update:modelValue', props.modelValue)
 }
+
+/**
+ * @param {import('./layout.js').Webpart} webpart
+ * @param {object} data
+ */
+function handleUpdateWebpartData(webpart, data) {
+	setWebpartData(webpart, data)
+	emit('update:modelValue', props.modelValue)
+}
 </script>
 
 <template>
@@ -69,10 +78,10 @@ function handleRemoveWebpart(row, column, webpart) {
 			<div class="page-layout-editor__grid" :style="{ 'grid-template-columns': getGridTemplateColumns(row) }">
 				<div v-for="column in row.columns" :key="column.id" class="page-layout-editor__column">
 					<div v-for="webpart in column.webparts" :key="webpart.id" class="page-layout-editor__webpart">
-						<component
-							:is="webpartTypes[webpart.type]?.edit"
-							v-if="webpartTypes[webpart.type]"
-							v-model="webpart.html" />
+						<WebpartInstance
+							:webpart="webpart"
+							mode="edit"
+							@update:data="handleUpdateWebpartData(webpart, $event)" />
 						<NcButton
 							variant="tertiary"
 							:aria-label="t('employee_portal', 'Remove text')"

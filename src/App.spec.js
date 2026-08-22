@@ -53,9 +53,9 @@ const mountOptions = {
 				template: '<div><slot /></div>',
 			},
 			RichTextWebpartEdit: {
-				props: ['modelValue'],
-				emits: ['update:modelValue'],
-				template: '<textarea class="richtext-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+				props: ['data'],
+				emits: ['update:data'],
+				template: '<textarea class="richtext-stub" :value="data.html" @input="$emit(\'update:data\', { html: $event.target.value })" />',
 			},
 		},
 	},
@@ -297,7 +297,7 @@ describe('App', () => {
 		expect(savePage).toHaveBeenCalledOnce()
 		const [path, content] = savePage.mock.calls[0]
 		expect(path).toBe('welcome.md')
-		expect(JSON.parse(content).rows[0].columns[0].webparts[0].html).toBe('updated')
+		expect(JSON.parse(content).rows[0].columns[0].webparts[0].data).toEqual({ html: 'updated' })
 		expect(wrapper.find('.richtext-stub').exists()).toBe(false)
 	})
 

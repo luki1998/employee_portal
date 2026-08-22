@@ -7,7 +7,8 @@
  * @typedef {object} Webpart
  * @property {string} id
  * @property {string} type Only 'richtext' exists for now.
- * @property {string} html
+ * @property {object} [data] Shape defined by the type; richtext's is {html}.
+ *   Absent on legacy instances - see getWebpartData.
  */
 
 /**
@@ -49,7 +50,31 @@ export function createId(prefix) {
  * @return {Webpart}
  */
 export function createRichTextWebpart(html = '') {
-	return { id: createId('wp'), type: 'richtext', html }
+	return { id: createId('wp'), type: 'richtext', data: { html } }
+}
+
+/**
+ * Reads a webpart instance's data, normalizing the legacy shape (a bare
+ * top-level `html` and no `data` field, from before Webpart instances carried
+ * a type-defined `data` object) as richtext data.
+ *
+ * @param {Webpart} webpart
+ * @return {object}
+ */
+export function getWebpartData(webpart) {
+	if (webpart.data !== undefined) {
+		return webpart.data
+	}
+
+	return webpart.type === 'richtext' && typeof webpart.html === 'string' ? { html: webpart.html } : {}
+}
+
+/**
+ * @param {Webpart} webpart
+ * @param {object} data
+ */
+export function setWebpartData(webpart, data) {
+	webpart.data = data
 }
 
 /**

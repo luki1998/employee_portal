@@ -19,8 +19,8 @@ const mountOptions = {
 	global: {
 		stubs: {
 			RichTextWebpartEdit: {
-				props: ['modelValue'],
-				template: '<textarea class="richtext-stub" :value="modelValue" />',
+				props: ['data'],
+				template: '<textarea class="richtext-stub" :value="data.html" />',
 			},
 		},
 	},

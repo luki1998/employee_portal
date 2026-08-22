@@ -26,21 +26,21 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 
 const props = defineProps({
-	modelValue: {
-		type: String,
-		default: '',
+	data: {
+		type: Object,
+		default: () => ({ html: '' }),
 	},
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:data'])
 
 const editor = useEditor({
-	content: dompurify.sanitize(props.modelValue),
+	content: dompurify.sanitize(props.data.html ?? ''),
 	extensions: [
 		StarterKit.configure({ link: false }),
 		Link.configure({ openOnClick: false, autolink: true }),
 	],
-	onUpdate: ({ editor }) => emit('update:modelValue', editor.getHTML()),
+	onUpdate: ({ editor }) => emit('update:data', { html: editor.getHTML() }),
 })
 
 /**

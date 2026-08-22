@@ -4,9 +4,8 @@
 -->
 
 <script setup>
-import { t } from '@nextcloud/l10n'
 import { getGridTemplateColumns } from './layout.js'
-import { webpartTypes } from './webparts/registry.js'
+import WebpartInstance from './webparts/WebpartInstance.vue'
 
 defineProps({
 	layout: {
@@ -24,12 +23,11 @@ defineProps({
 			class="page-layout__row"
 			:style="{ 'grid-template-columns': getGridTemplateColumns(row) }">
 			<div v-for="column in row.columns" :key="column.id" class="page-layout__column">
-				<template v-for="webpart in column.webparts" :key="webpart.id">
-					<component :is="webpartTypes[webpart.type]?.view" v-if="webpartTypes[webpart.type]" v-bind="webpart" />
-					<p v-else class="page-layout__unsupported">
-						{{ t('employee_portal', 'This content type is not supported.') }}
-					</p>
-				</template>
+				<WebpartInstance
+					v-for="webpart in column.webparts"
+					:key="webpart.id"
+					:webpart="webpart"
+					mode="view" />
 			</div>
 		</div>
 	</div>
@@ -42,8 +40,4 @@ defineProps({
 	margin-block-end: calc(var(--default-grid-baseline) * 4);
 }
 
-.page-layout__unsupported {
-	color: var(--color-text-maxcontrast);
-	font-style: italic;
-}
 </style>
