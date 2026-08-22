@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { t } from '@nextcloud/l10n'
+import NewsGridWebpartEdit from './newsgrid/NewsGridWebpartEdit.vue'
+import NewsGridWebpartView from './newsgrid/NewsGridWebpartView.vue'
 import RichTextWebpartEdit from './richtext/RichTextWebpartEdit.vue'
 import RichTextWebpartView from './richtext/RichTextWebpartView.vue'
 import { webpartDefaults } from './defaults.js'
@@ -20,5 +22,13 @@ export const webpartTypes = {
 		edit: RichTextWebpartEdit,
 		view: RichTextWebpartView,
 		defaultData: webpartDefaults.richtext,
+	},
+	newsgrid: {
+		get label() {
+			return t('employee_portal', 'News grid')
+		},
+		edit: NewsGridWebpartEdit,
+		view: NewsGridWebpartView,
+		defaultData: webpartDefaults.newsgrid,
 	},
 }
