@@ -10,11 +10,14 @@
 export const DEFAULT_TYPE = 'richtext'
 
 /**
- * Maps a Webpart type to a factory for its default `data` payload. Framework-free
- * on purpose: `layout.js` needs this to create new Webpart instances without
+ * Maps a Webpart type to a factory for its `data` payload. Framework-free on
+ * purpose: `layout.js` needs this to create new Webpart instances without
  * depending on the Vue-bearing component registry - see webparts/registry.js,
- * which composes this same map into its own per-type contract.
+ * which composes this same map into its own per-type contract. Called with no
+ * arguments for a blank instance; richtext's factory also accepts an explicit
+ * `html` override, reused by createRichTextWebpart so the {html} data shape
+ * has one source of truth.
  */
 export const webpartDefaults = {
-	[DEFAULT_TYPE]: () => ({ html: '' }),
+	[DEFAULT_TYPE]: (html = '') => ({ html }),
 }

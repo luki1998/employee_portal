@@ -119,6 +119,12 @@ describe('createWebpart', () => {
 	it('returns undefined for an unregistered type', () => {
 		expect(createWebpart('vendor.unknown')).toBeUndefined()
 	})
+
+	it('returns undefined rather than resolving Object.prototype members', () => {
+		expect(createWebpart('constructor')).toBeUndefined()
+		expect(createWebpart('hasOwnProperty')).toBeUndefined()
+		expect(createWebpart('toString')).toBeUndefined()
+	})
 })
 
 describe('addRow / removeRow / moveRow', () => {

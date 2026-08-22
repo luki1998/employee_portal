@@ -51,25 +51,26 @@ export function createId(prefix) {
  * @return {Webpart}
  */
 export function createRichTextWebpart(html = '') {
-	return { id: createId('wp'), type: DEFAULT_TYPE, data: { html } }
+	return { id: createId('wp'), type: DEFAULT_TYPE, data: webpartDefaults[DEFAULT_TYPE](html) }
 }
 
 /**
  * Creates a new Webpart instance of the given type, using that type's
  * default-data factory (see webparts/defaults.js). Returns undefined for a
  * type with no registered factory, rather than throwing - callers only ever
- * pass a type sourced from the registry itself.
+ * pass a type sourced from the registry itself. `type` may come from stored
+ * layout JSON (WebDAV-editable), so the lookup must not fall through to
+ * Object.prototype for names like 'constructor'.
  *
  * @param {string} [type]
  * @return {Webpart | undefined}
  */
 export function createWebpart(type = DEFAULT_TYPE) {
-	const createDefaultData = webpartDefaults[type]
-	if (!createDefaultData) {
+	if (!Object.hasOwn(webpartDefaults, type)) {
 		return undefined
 	}
 
-	return { id: createId('wp'), type, data: createDefaultData() }
+	return { id: createId('wp'), type, data: webpartDefaults[type]() }
 }
 
 /**
@@ -85,7 +86,7 @@ export function getWebpartData(webpart) {
 		return webpart.data
 	}
 
-	return webpart.type === 'richtext' && typeof webpart.html === 'string' ? { html: webpart.html } : {}
+	return webpart.type === DEFAULT_TYPE && typeof webpart.html === 'string' ? { html: webpart.html } : {}
 }
 
 /**
