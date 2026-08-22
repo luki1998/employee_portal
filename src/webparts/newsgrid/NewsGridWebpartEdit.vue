@@ -4,32 +4,21 @@
 -->
 
 <script setup>
-import { t } from '@nextcloud/l10n'
-import NcTextField from '@nextcloud/vue/components/NcTextField'
+import NewsGridWebpartView from './NewsGridWebpartView.vue'
 
-const props = defineProps({
+defineProps({
 	data: {
 		type: Object,
 		default: () => ({ items: [], allNewsLink: '' }),
 	},
 })
-
-const emit = defineEmits(['update:data'])
-
-/**
- * @param {string} allNewsLink
- */
-function onAllNewsLinkChange(allNewsLink) {
-	emit('update:data', { ...props.data, allNewsLink })
-}
 </script>
 
 <template>
-	<div class="newsgrid-webpart-edit">
-		<NcTextField
-			:model-value="data.allNewsLink ?? ''"
-			:label="t('employee_portal', 'All news link')"
-			:helperText="t('employee_portal', 'Where readers can find a fuller news listing. Leave empty to hide the link.')"
-			@update:model-value="onAllNewsLinkChange" />
-	</div>
+	<!--
+		No item-level editing UI exists yet (see spec Out of Scope) - the canvas
+		shows the same read-only card list as view mode, and configuration
+		(currently just "All news link") lives in the Webpart pane instead.
+	-->
+	<NewsGridWebpartView :data="data" />
 </template>

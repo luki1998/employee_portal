@@ -49,10 +49,11 @@ they can see are exactly the ones directly shared with them.
 
 **Webpart type**:
 A registered, installable *kind* of Webpart — what defines how a Webpart
-behaves and renders, independent of any particular Page. `richtext` is
-currently the only Webpart type; the plugin work this app is heading toward
-is about letting more Webpart types exist, including ones an instance admin
-installs themselves rather than ones bundled with this app.
+behaves and renders, independent of any particular Page. `richtext` and
+`newsgrid` are the types registered today (see `webparts/registry.js`); the
+plugin work this app is heading toward is about letting more Webpart types
+exist, including ones an instance admin installs themselves rather than ones
+bundled with this app.
 _Avoid_: Widget type, widget definition
 
 **Webpart instance**:

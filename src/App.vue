@@ -21,12 +21,13 @@ import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
 import NcIconSvgWrapper from '@nextcloud/vue/components/NcIconSvgWrapper'
 import NcLoadingIcon from '@nextcloud/vue/components/NcLoadingIcon'
 import NcTextField from '@nextcloud/vue/components/NcTextField'
-import { convertMarkdownToLayout, MAX_COLUMNS, moveRow, parseLayout, removeRow, serializeLayout, setColumnCount, setColumnWidths } from './layout.js'
+import { convertMarkdownToLayout, getWebpartData, MAX_COLUMNS, moveRow, parseLayout, removeRow, removeWebpart, serializeLayout, setColumnCount, setColumnWidths, setWebpartData } from './layout.js'
 import { renderMarkdown } from './markdown.js'
 import PageLayoutEditor from './PageLayoutEditor.vue'
 import PageLayoutViewer from './PageLayoutViewer.vue'
 import { fetchPage, fetchPages, savePage } from './services/pages.js'
 import { createSite, fetchSites } from './services/sites.js'
+import { webpartTypes } from './webparts/registry.js'
 
 const sites = ref([])
 const currentSite = ref(null)
@@ -35,6 +36,7 @@ const current = ref(null)
 const draftLayout = ref(null)
 const editing = ref(false)
 const activeRowId = ref(null)
+const activeWebpartId = ref(null)
 const loading = ref(true)
 const saving = ref(false)
 const creating = ref(false)
@@ -47,6 +49,28 @@ const newSiteName = ref('')
 // The row currently targeted by the sidebar, if any.
 const activeRow = computed(() => draftLayout.value?.rows.find((row) => row.id === activeRowId.value) ?? null)
 const activeRowIndex = computed(() => draftLayout.value?.rows.findIndex((row) => row.id === activeRowId.value) ?? -1)
+
+// The Webpart currently targeted by the sidebar's Webpart tab, if any - always
+// scoped to a Webpart within the active row, since selecting a Webpart always
+// selects its parent row too (see PageLayoutEditor.vue).
+const activeWebpart = computed(() => activeRow.value?.columns.flatMap((column) => column.webparts).find((webpart) => webpart.id === activeWebpartId.value) ?? null)
+const activeWebpartType = computed(() => webpartTypes[activeWebpart.value?.type] ?? null)
+
+// Which of the sidebar's tabs is shown. Jumps to "webpart" whenever a new
+// Webpart becomes selected (also what auto-opens the pane when one is just
+// added - see PageLayoutEditor.vue's "+" menu), but otherwise stays wherever
+// the user leaves it: switching tabs must not disturb either selection.
+const sidebarTab = ref('row')
+
+/**
+ * @param {string | null} id
+ */
+function updateActiveWebpartId(id) {
+	activeWebpartId.value = id
+	// A plain `watch` would miss re-selecting the same already-active Webpart
+	// (no value change to react to) while the user has switched to the Row tab.
+	sidebarTab.value = id ? 'webpart' : 'row'
+}
 
 // A page's content is either a JSON layout (rows of columns of webparts) or,
 // for pages not yet touched by the layout editor, plain legacy markdown.
@@ -112,6 +136,7 @@ async function selectSite(name) {
 	current.value = null
 	editing.value = false
 	activeRowId.value = null
+	updateActiveWebpartId(null)
 	await loadPages()
 }
 
@@ -139,6 +164,7 @@ async function openPage(path) {
 		current.value = await fetchPage(path)
 		editing.value = false
 		activeRowId.value = null
+		updateActiveWebpartId(null)
 	} catch (error) {
 		showError(errorMessage(error, t('employee_portal', 'Could not open the page')))
 	}
@@ -161,6 +187,7 @@ function buildDraftLayout() {
 function startEditing() {
 	buildDraftLayout()
 	activeRowId.value = null
+	updateActiveWebpartId(null)
 	editing.value = true
 }
 
@@ -170,6 +197,7 @@ function startEditing() {
 function cancelEditing() {
 	editing.value = false
 	activeRowId.value = null
+	updateActiveWebpartId(null)
 }
 
 /**
@@ -183,6 +211,7 @@ async function save() {
 		current.value = { ...page, content }
 		editing.value = false
 		activeRowId.value = null
+		updateActiveWebpartId(null)
 		upsertPage(page)
 	} catch (error) {
 		showError(errorMessage(error, t('employee_portal', 'Could not save the page')))
@@ -230,7 +259,30 @@ function handleRemoveActiveRow() {
 	if (activeRow.value) {
 		removeRow(draftLayout.value, activeRow.value.id)
 		activeRowId.value = null
+		updateActiveWebpartId(null)
 	}
+}
+
+/**
+ * @param {object} data
+ */
+function handleUpdateActiveWebpartData(data) {
+	if (activeWebpart.value) {
+		setWebpartData(activeWebpart.value, data)
+	}
+}
+
+function handleRemoveActiveWebpart() {
+	const column = activeRow.value?.columns.find((column) => column.webparts.includes(activeWebpart.value))
+	if (column && activeWebpart.value) {
+		removeWebpart(draftLayout.value, activeRow.value.id, column.id, activeWebpart.value.id)
+		updateActiveWebpartId(null)
+	}
+}
+
+function closeSidebar() {
+	activeRowId.value = null
+	updateActiveWebpartId(null)
 }
 
 /**
@@ -416,7 +468,12 @@ function errorMessage(error, fallback) {
 					</template>
 				</header>
 
-				<PageLayoutEditor v-if="editing" v-model="draftLayout" v-model:active-row-id="activeRowId" />
+				<PageLayoutEditor
+					v-if="editing"
+					v-model="draftLayout"
+					v-model:active-row-id="activeRowId"
+					:active-webpart-id="activeWebpartId"
+					@update:active-webpart-id="updateActiveWebpartId" />
 				<PageLayoutViewer v-else-if="parsed.kind === 'layout'" :layout="parsed.layout" />
 				<!-- eslint-disable-next-line vue/no-v-html -- renderMarkdown sanitizes its output -->
 				<div v-else class="rich-content" v-html="renderMarkdown(parsed.markdown)" />
@@ -427,79 +484,120 @@ function errorMessage(error, fallback) {
 			v-if="editing"
 			:open="activeRow !== null"
 			no-toggle
-			:name="t('employee_portal', 'Row settings')"
-			@close="activeRowId = null">
+			:name="sidebarTab === 'webpart' ? t('employee_portal', 'Webpart settings') : t('employee_portal', 'Row settings')"
+			@close="closeSidebar()">
 			<template v-if="activeRow">
-				<section class="row-settings__section">
-					<h3>{{ t('employee_portal', 'Columns') }}</h3>
-					<div class="row-settings__stepper">
-						<NcButton
-							v-for="count in MAX_COLUMNS"
-							:key="count"
-							variant="tertiary"
-							:pressed="activeRow.columns.length === count"
-							:aria-label="t('employee_portal', 'Use {count} column(s)', { count })"
-							@click="changeActiveRowColumnCount(count)">
-							{{ count }}
-						</NcButton>
-					</div>
-				</section>
+				<div v-if="activeWebpart" class="row-settings__tabs">
+					<NcButton
+						variant="tertiary"
+						:pressed="sidebarTab === 'row'"
+						@click="sidebarTab = 'row'">
+						{{ t('employee_portal', 'Row') }}
+					</NcButton>
+					<NcButton
+						variant="tertiary"
+						:pressed="sidebarTab === 'webpart'"
+						@click="sidebarTab = 'webpart'">
+						{{ t('employee_portal', 'Webpart') }}
+					</NcButton>
+				</div>
 
-				<section v-if="activeRow.columns.length === 2" class="row-settings__section">
-					<h3>{{ t('employee_portal', 'Column width') }}</h3>
-					<div class="row-settings__stepper">
-						<NcButton
-							variant="tertiary"
-							:pressed="isActiveRowWidths([1, 1])"
-							:aria-label="t('employee_portal', 'Equal width columns')"
-							@click="changeActiveRowColumnWidths([1, 1])">
-							50 / 50
-						</NcButton>
-						<NcButton
-							variant="tertiary"
-							:pressed="isActiveRowWidths([1, 2])"
-							:aria-label="t('employee_portal', 'Narrow first column')"
-							@click="changeActiveRowColumnWidths([1, 2])">
-							33 / 67
-						</NcButton>
-						<NcButton
-							variant="tertiary"
-							:pressed="isActiveRowWidths([2, 1])"
-							:aria-label="t('employee_portal', 'Narrow second column')"
-							@click="changeActiveRowColumnWidths([2, 1])">
-							67 / 33
-						</NcButton>
-					</div>
-				</section>
+				<template v-if="sidebarTab === 'webpart' && activeWebpart">
+					<section class="row-settings__section">
+						<h3>{{ activeWebpartType?.label }}</h3>
+					</section>
 
-				<section class="row-settings__section">
-					<NcButton
-						variant="tertiary"
-						:disabled="activeRowIndex <= 0"
-						@click="handleMoveActiveRow(-1)">
-						<template #icon>
-							<NcIconSvgWrapper :path="mdiArrowUp" :size="20" />
-						</template>
-						{{ t('employee_portal', 'Move row up') }}
-					</NcButton>
-					<NcButton
-						variant="tertiary"
-						:disabled="activeRowIndex === -1 || activeRowIndex === draftLayout.rows.length - 1"
-						@click="handleMoveActiveRow(1)">
-						<template #icon>
-							<NcIconSvgWrapper :path="mdiArrowDown" :size="20" />
-						</template>
-						{{ t('employee_portal', 'Move row down') }}
-					</NcButton>
-					<NcButton
-						variant="tertiary"
-						@click="handleRemoveActiveRow()">
-						<template #icon>
-							<NcIconSvgWrapper :path="mdiDelete" :size="20" />
-						</template>
-						{{ t('employee_portal', 'Remove row') }}
-					</NcButton>
-				</section>
+					<section v-if="activeWebpartType?.settings" class="row-settings__section">
+						<component
+							:is="activeWebpartType.settings"
+							:data="getWebpartData(activeWebpart)"
+							@update:data="handleUpdateActiveWebpartData" />
+					</section>
+
+					<section class="row-settings__section">
+						<NcButton
+							variant="tertiary"
+							@click="handleRemoveActiveWebpart()">
+							<template #icon>
+								<NcIconSvgWrapper :path="mdiDelete" :size="20" />
+							</template>
+							{{ t('employee_portal', 'Remove') }}
+						</NcButton>
+					</section>
+				</template>
+
+				<template v-else>
+					<section class="row-settings__section">
+						<h3>{{ t('employee_portal', 'Columns') }}</h3>
+						<div class="row-settings__stepper">
+							<NcButton
+								v-for="count in MAX_COLUMNS"
+								:key="count"
+								variant="tertiary"
+								:pressed="activeRow.columns.length === count"
+								:aria-label="t('employee_portal', 'Use {count} column(s)', { count })"
+								@click="changeActiveRowColumnCount(count)">
+								{{ count }}
+							</NcButton>
+						</div>
+					</section>
+
+					<section v-if="activeRow.columns.length === 2" class="row-settings__section">
+						<h3>{{ t('employee_portal', 'Column width') }}</h3>
+						<div class="row-settings__stepper">
+							<NcButton
+								variant="tertiary"
+								:pressed="isActiveRowWidths([1, 1])"
+								:aria-label="t('employee_portal', 'Equal width columns')"
+								@click="changeActiveRowColumnWidths([1, 1])">
+								50 / 50
+							</NcButton>
+							<NcButton
+								variant="tertiary"
+								:pressed="isActiveRowWidths([1, 2])"
+								:aria-label="t('employee_portal', 'Narrow first column')"
+								@click="changeActiveRowColumnWidths([1, 2])">
+								33 / 67
+							</NcButton>
+							<NcButton
+								variant="tertiary"
+								:pressed="isActiveRowWidths([2, 1])"
+								:aria-label="t('employee_portal', 'Narrow second column')"
+								@click="changeActiveRowColumnWidths([2, 1])">
+								67 / 33
+							</NcButton>
+						</div>
+					</section>
+
+					<section class="row-settings__section">
+						<NcButton
+							variant="tertiary"
+							:disabled="activeRowIndex <= 0"
+							@click="handleMoveActiveRow(-1)">
+							<template #icon>
+								<NcIconSvgWrapper :path="mdiArrowUp" :size="20" />
+							</template>
+							{{ t('employee_portal', 'Move row up') }}
+						</NcButton>
+						<NcButton
+							variant="tertiary"
+							:disabled="activeRowIndex === -1 || activeRowIndex === draftLayout.rows.length - 1"
+							@click="handleMoveActiveRow(1)">
+							<template #icon>
+								<NcIconSvgWrapper :path="mdiArrowDown" :size="20" />
+							</template>
+							{{ t('employee_portal', 'Move row down') }}
+						</NcButton>
+						<NcButton
+							variant="tertiary"
+							@click="handleRemoveActiveRow()">
+							<template #icon>
+								<NcIconSvgWrapper :path="mdiDelete" :size="20" />
+							</template>
+							{{ t('employee_portal', 'Remove row') }}
+						</NcButton>
+					</section>
+				</template>
 			</template>
 		</NcAppSidebar>
 
@@ -553,6 +651,13 @@ function errorMessage(error, fallback) {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.row-settings__tabs {
+	display: flex;
+	gap: 2px;
+	padding: calc(var(--default-grid-baseline) * 2);
+	border-block-end: 1px solid var(--color-border);
 }
 
 .row-settings__section {

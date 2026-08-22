@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 import { showError } from '@nextcloud/dialogs'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import NcAppNavigationItem from '@nextcloud/vue/components/NcAppNavigationItem'
 import NcAppNavigationNew from '@nextcloud/vue/components/NcAppNavigationNew'
+import NcAppSidebar from '@nextcloud/vue/components/NcAppSidebar'
 import NcButton from '@nextcloud/vue/components/NcButton'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcEmptyContent from '@nextcloud/vue/components/NcEmptyContent'
@@ -93,6 +95,19 @@ const clickEvent = { preventDefault: () => {} }
  */
 function findButton(wrapper, label) {
 	return wrapper.findAllComponents(NcButton).find((button) => button.props('ariaLabel') === label || button.text() === label)
+}
+
+/**
+ * Opens a column's "+" type-picker menu. NcActions teleports its menu content
+ * into a popper that only mounts after a real timer tick (its floating-ui
+ * positioning runs on a jsdom-polyfilled requestAnimationFrame) - a plain
+ * nextTick/flushPromises does not surface it - see PageLayoutEditor.spec.js.
+ *
+ * @param wrapper A mounted wrapper containing the trigger
+ */
+async function openTypeMenu(wrapper) {
+	await wrapper.get('[aria-label="Add content"]').trigger('click')
+	await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
 /**
@@ -385,6 +400,235 @@ describe('App', () => {
 		expect(wrapper.findAll('.page-layout-editor__row')).toHaveLength(1)
 		// Removing the active row closes the panel.
 		expect(findButton(wrapper, 'Remove row')).toBeUndefined()
+	})
+
+	it('selects a webpart, showing its type label and a Remove action in the Webpart tab', async () => {
+		fetchPages.mockResolvedValue([makePage()])
+		fetchPage.mockResolvedValue({ ...makePage(), content: 'original' })
+
+		const wrapper = mount(App, mountOptions)
+		await flushPromises()
+		await wrapper.get('.page-list').findComponent(NcAppNavigationItem).vm.$emit('click')
+		await flushPromises()
+		await wrapper.get('.page__header').findComponent(NcButton).vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findButton(wrapper, 'Webpart settings').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		expect(findButton(wrapper, 'Row')).toBeTruthy()
+		expect(findButton(wrapper, 'Webpart')).toBeTruthy()
+		expect(wrapper.get('.row-settings__section').text()).toContain('Text')
+
+		await findButton(wrapper, 'Remove').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		// Removing the active Webpart clears its selection - back to Row-only.
+		expect(findButton(wrapper, 'Webpart')).toBeUndefined()
+		expect(wrapper.findAll('.page-layout-editor__webpart')).toHaveLength(0)
+	})
+
+	it('keeps both selections when switching between the Row and Webpart tabs', async () => {
+		fetchPages.mockResolvedValue([makePage()])
+		fetchPage.mockResolvedValue({ ...makePage(), content: 'original' })
+
+		const wrapper = mount(App, mountOptions)
+		await flushPromises()
+		await wrapper.get('.page-list').findComponent(NcAppNavigationItem).vm.$emit('click')
+		await flushPromises()
+		await wrapper.get('.page__header').findComponent(NcButton).vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findButton(wrapper, 'Webpart settings').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findButton(wrapper, 'Row').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		expect(wrapper.get('.row-settings__section').text()).toContain('Columns')
+		// Switching tabs did not clear the Webpart selection.
+		expect(wrapper.get('.page-layout-editor__webpart').classes()).toContain('page-layout-editor__webpart--active')
+		expect(findButton(wrapper, 'Webpart')).toBeTruthy()
+
+		await findButton(wrapper, 'Webpart').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		expect(wrapper.get('.row-settings__section').text()).toContain('Text')
+	})
+
+	it('replaces the webpart selection when a different row is selected', async () => {
+		fetchPages.mockResolvedValue([makePage()])
+		fetchPage.mockResolvedValue({ ...makePage(), content: 'original' })
+
+		const wrapper = mount(App, mountOptions)
+		await flushPromises()
+		await wrapper.get('.page-list').findComponent(NcAppNavigationItem).vm.$emit('click')
+		await flushPromises()
+		await wrapper.get('.page__header').findComponent(NcButton).vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findButton(wrapper, 'Add row').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+		await findButton(wrapper, 'Webpart settings').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+		expect(findButton(wrapper, 'Webpart')).toBeTruthy()
+
+		const rowTriggers = wrapper.findAllComponents(NcButton).filter((button) => button.props('ariaLabel') === 'Row settings')
+		await rowTriggers[1].vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		expect(findButton(wrapper, 'Webpart')).toBeUndefined()
+	})
+
+	it('closes the sidebar when the row holding the active webpart is removed from the Row tab', async () => {
+		fetchPages.mockResolvedValue([makePage()])
+		fetchPage.mockResolvedValue({ ...makePage(), content: 'original' })
+
+		const wrapper = mount(App, mountOptions)
+		await flushPromises()
+		await wrapper.get('.page-list').findComponent(NcAppNavigationItem).vm.$emit('click')
+		await flushPromises()
+		await wrapper.get('.page__header').findComponent(NcButton).vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findButton(wrapper, 'Webpart settings').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+		// Switch to the Row tab without deselecting the Webpart, then remove the row from there -
+		// activeWebpartId must be cleared alongside activeRowId, not just left dangling.
+		await findButton(wrapper, 'Row').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findButton(wrapper, 'Remove row').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		expect(findButton(wrapper, 'Remove row')).toBeUndefined()
+		expect(findButton(wrapper, 'Webpart')).toBeUndefined()
+	})
+
+	it('re-opens the Webpart tab when its already-active trigger is clicked again from the Row tab', async () => {
+		fetchPages.mockResolvedValue([makePage()])
+		fetchPage.mockResolvedValue({ ...makePage(), content: 'original' })
+
+		const wrapper = mount(App, mountOptions)
+		await flushPromises()
+		await wrapper.get('.page-list').findComponent(NcAppNavigationItem).vm.$emit('click')
+		await flushPromises()
+		await wrapper.get('.page__header').findComponent(NcButton).vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findButton(wrapper, 'Webpart settings').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+		await findButton(wrapper, 'Row').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+		expect(wrapper.get('.row-settings__section').text()).toContain('Columns')
+
+		// Same Webpart, already active - a plain ref-change watch would miss this.
+		await findButton(wrapper, 'Webpart settings').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		expect(wrapper.get('.row-settings__section').text()).toContain('Text')
+	})
+
+	it('resets the webpart selection when edit mode is left and resumed', async () => {
+		fetchPages.mockResolvedValue([makePage()])
+		fetchPage.mockResolvedValue({ ...makePage(), content: 'original' })
+
+		const wrapper = mount(App, mountOptions)
+		await flushPromises()
+		await wrapper.get('.page-list').findComponent(NcAppNavigationItem).vm.$emit('click')
+		await flushPromises()
+		await wrapper.get('.page__header').findComponent(NcButton).vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findButton(wrapper, 'Webpart settings').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+		expect(findButton(wrapper, 'Webpart')).toBeTruthy()
+
+		await findButton(wrapper, 'Cancel').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+		await wrapper.get('.page__header').findComponent(NcButton).vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		expect(wrapper.findAll('.page-layout-editor__webpart--active')).toHaveLength(0)
+		expect(findButton(wrapper, 'Webpart')).toBeUndefined()
+	})
+
+	it('shows no settings fields in the Webpart pane for a richtext webpart', async () => {
+		fetchPages.mockResolvedValue([makePage()])
+		fetchPage.mockResolvedValue({ ...makePage(), content: 'original' })
+
+		const wrapper = mount(App, mountOptions)
+		await flushPromises()
+		await wrapper.get('.page-list').findComponent(NcAppNavigationItem).vm.$emit('click')
+		await flushPromises()
+		await wrapper.get('.page__header').findComponent(NcButton).vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findButton(wrapper, 'Webpart settings').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		expect(wrapper.findComponent(NcAppSidebar).findAllComponents(NcTextField)).toHaveLength(0)
+	})
+
+	it('edits a newsgrid webpart\'s "All news link" from its settings field in the Webpart pane', async () => {
+		const layout = {
+			version: 1,
+			rows: [
+				{
+					id: 'row-1',
+					columns: [
+						{ id: 'col-1', webparts: [{ id: 'wp-1', type: 'newsgrid', data: { items: [], allNewsLink: '' } }] },
+					],
+				},
+			],
+		}
+		fetchPages.mockResolvedValue([makePage()])
+		fetchPage.mockResolvedValue({ ...makePage(), content: JSON.stringify(layout) })
+		savePage.mockResolvedValue(makePage({ mtime: 2000 }))
+
+		const wrapper = mount(App, mountOptions)
+		await flushPromises()
+		await wrapper.get('.page-list').findComponent(NcAppNavigationItem).vm.$emit('click')
+		await flushPromises()
+		await wrapper.get('.page__header').findComponent(NcButton).vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findButton(wrapper, 'Webpart settings').vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await findByProp(wrapper, NcTextField, 'label', 'All news link').vm.$emit('update:modelValue', 'https://example.com/news')
+		await wrapper.vm.$nextTick()
+
+		const saveButton = wrapper.get('.page__header').findAllComponents(NcButton).at(1)
+		await saveButton.vm.$emit('click', clickEvent)
+		await flushPromises()
+
+		const [, content] = savePage.mock.calls[0]
+		expect(JSON.parse(content).rows[0].columns[0].webparts[0].data.allNewsLink).toBe('https://example.com/news')
+	})
+
+	it('opens the Webpart pane on the new Webpart as soon as a type is picked from the "+" menu', async () => {
+		fetchPages.mockResolvedValue([makePage()])
+		fetchPage.mockResolvedValue({ ...makePage(), content: 'original' })
+
+		const wrapper = mount(App, mountOptions)
+		await flushPromises()
+		await wrapper.get('.page-list').findComponent(NcAppNavigationItem).vm.$emit('click')
+		await flushPromises()
+		await wrapper.get('.page__header').findComponent(NcButton).vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		await openTypeMenu(wrapper)
+		const newsGridEntry = wrapper.findAllComponents(NcActionButton).find((button) => button.text() === 'News grid')
+		await newsGridEntry.vm.$emit('click', clickEvent)
+		await wrapper.vm.$nextTick()
+
+		// The pane opened straight to the "Webpart" tab, with the newly created
+		// News grid webpart both selected and highlighted, no hover needed.
+		expect(wrapper.get('.row-settings__section').text()).toContain('News grid')
+		const activeWebparts = wrapper.findAll('.page-layout-editor__webpart--active')
+		expect(activeWebparts).toHaveLength(1)
+		expect(activeWebparts[0].find('.newsgrid-webpart').exists()).toBe(true)
 	})
 
 	it('does not offer an edit button for a read-only page', async () => {

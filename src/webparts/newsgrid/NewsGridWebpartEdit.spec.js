@@ -12,15 +12,16 @@ vi.mock('@nextcloud/l10n', async (importOriginal) => ({
 }))
 
 describe('NewsGridWebpartEdit', () => {
-	it('emits update:data with allNewsLink updated and items preserved unchanged', async () => {
-		const items = [{ title: 'Q3 all-hands recap' }]
+	it('renders the same read-only card list as view mode', () => {
+		const items = [{ title: 'Q3 all-hands recap', author: 'Priya Nair', date: '2026-08-18', views: 482, comments: 12 }]
 		const wrapper = mount(NewsGridWebpartEdit, { props: { data: { items, allNewsLink: '' } } })
 
-		const input = wrapper.get('input')
-		await input.setValue('https://example.com/news')
+		expect(wrapper.get('.newsgrid-webpart__card').text()).toContain('Q3 all-hands recap')
+	})
 
-		expect(wrapper.emitted('update:data')).toBeTruthy()
-		const [lastEmit] = wrapper.emitted('update:data').at(-1)
-		expect(lastEmit).toEqual({ items, allNewsLink: 'https://example.com/news' })
+	it('does not render the "All news link" field - it lives in NewsGridWebpartSettings instead', () => {
+		const wrapper = mount(NewsGridWebpartEdit, { props: { data: { items: [], allNewsLink: '' } } })
+
+		expect(wrapper.find('input').exists()).toBe(false)
 	})
 })
