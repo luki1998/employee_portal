@@ -5,10 +5,12 @@
 import { t } from '@nextcloud/l10n'
 import RichTextWebpartEdit from './richtext/RichTextWebpartEdit.vue'
 import RichTextWebpartView from './richtext/RichTextWebpartView.vue'
+import { webpartDefaults } from './defaults.js'
 
 /**
- * Maps a webpart's `type` to the components that edit and view it. The single
- * seam needed to add another webpart type later - not a plugin system.
+ * Maps a webpart's `type` to its label, its edit/view components, and its
+ * default-data factory. The single seam needed to add another webpart type
+ * later - not a plugin system.
  */
 export const webpartTypes = {
 	richtext: {
@@ -17,5 +19,6 @@ export const webpartTypes = {
 		},
 		edit: RichTextWebpartEdit,
 		view: RichTextWebpartView,
+		defaultData: webpartDefaults.richtext,
 	},
 }

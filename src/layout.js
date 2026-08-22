@@ -2,6 +2,7 @@
  * SPDX-FileCopyrightText: 2026 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
+import { DEFAULT_TYPE, webpartDefaults } from './webparts/defaults.js'
 
 /**
  * @typedef {object} Webpart
@@ -50,7 +51,25 @@ export function createId(prefix) {
  * @return {Webpart}
  */
 export function createRichTextWebpart(html = '') {
-	return { id: createId('wp'), type: 'richtext', data: { html } }
+	return { id: createId('wp'), type: DEFAULT_TYPE, data: { html } }
+}
+
+/**
+ * Creates a new Webpart instance of the given type, using that type's
+ * default-data factory (see webparts/defaults.js). Returns undefined for a
+ * type with no registered factory, rather than throwing - callers only ever
+ * pass a type sourced from the registry itself.
+ *
+ * @param {string} [type]
+ * @return {Webpart | undefined}
+ */
+export function createWebpart(type = DEFAULT_TYPE) {
+	const createDefaultData = webpartDefaults[type]
+	if (!createDefaultData) {
+		return undefined
+	}
+
+	return { id: createId('wp'), type, data: createDefaultData() }
 }
 
 /**
@@ -86,7 +105,7 @@ export function createRow(columnCount = 1) {
 
 	return {
 		id: createId('row'),
-		columns: Array.from({ length: count }, () => ({ id: createId('col'), webparts: [createRichTextWebpart()] })),
+		columns: Array.from({ length: count }, () => ({ id: createId('col'), webparts: [createWebpart()] })),
 		widths: Array.from({ length: count }, () => 1),
 	}
 }
@@ -264,13 +283,13 @@ export function getGridTemplateColumns(row) {
  * @param {string} [type]
  * @return {Webpart | undefined}
  */
-export function addWebpart(layout, rowId, columnId, type = 'richtext') {
+export function addWebpart(layout, rowId, columnId, type = DEFAULT_TYPE) {
 	const column = layout.rows.find((row) => row.id === rowId)?.columns.find((column) => column.id === columnId)
 	if (!column) {
 		return undefined
 	}
 
-	const webpart = type === 'richtext' ? createRichTextWebpart() : undefined
+	const webpart = createWebpart(type)
 	if (webpart) {
 		column.webparts.push(webpart)
 	}

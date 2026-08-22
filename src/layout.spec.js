@@ -10,6 +10,7 @@ import {
 	createEmptyLayout,
 	createRichTextWebpart,
 	createRow,
+	createWebpart,
 	getGridTemplateColumns,
 	getWebpartData,
 	MAX_COLUMNS,
@@ -98,6 +99,25 @@ describe('getWebpartData / setWebpartData', () => {
 		setWebpartData(webpart, { html: '<p>New</p>' })
 
 		expect(webpart.data).toEqual({ html: '<p>New</p>' })
+	})
+})
+
+describe('createWebpart', () => {
+	it('creates a default-type webpart with its type\'s default data', () => {
+		const webpart = createWebpart()
+
+		expect(webpart).toEqual(expect.objectContaining({ type: 'richtext', data: { html: '' } }))
+		expect(webpart.id).toEqual(expect.any(String))
+	})
+
+	it('creates a webpart of the given registered type', () => {
+		const webpart = createWebpart('richtext')
+
+		expect(webpart).toEqual(expect.objectContaining({ type: 'richtext', data: { html: '' } }))
+	})
+
+	it('returns undefined for an unregistered type', () => {
+		expect(createWebpart('vendor.unknown')).toBeUndefined()
 	})
 })
 
@@ -278,6 +298,17 @@ describe('addWebpart / removeWebpart', () => {
 
 		expect(column.webparts).toHaveLength(2)
 		expect(webpart.type).toBe('richtext')
+	})
+
+	it('is a no-op when asked for an unregistered type', () => {
+		const layout = { version: 1, rows: [createRow(1)] }
+		const row = layout.rows[0]
+		const column = row.columns[0]
+
+		const webpart = addWebpart(layout, row.id, column.id, 'vendor.unknown')
+
+		expect(webpart).toBeUndefined()
+		expect(column.webparts).toHaveLength(1)
 	})
 
 	it('removes a webpart by id', () => {
