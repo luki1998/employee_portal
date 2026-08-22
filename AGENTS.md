@@ -139,8 +139,16 @@ docker exec -u www-data master-nextcloud-1 php /var/www/html/occ app:enable empl
 
 ## Local dev instance
 
-This repo is bind-mounted into `master-nextcloud-1` (see
-`nextcloud-docker-dev/docker-compose.yml`). App path inside the container:
+This repo lives at `~/Projects/EmployeePortal`, outside the
+`nextcloud-docker-dev` checkout (moved out from `apps-extra/employee_portal`
+so this app's own `AGENTS.md`/`CLAUDE.md` load instead of the server repo's —
+see `nextcloud-docker-dev/workspace/server/apps-extra/employee_portal`, now
+just a symlink back here for host browsing). It's bind-mounted into
+`master-nextcloud-1` via `nextcloud-docker-dev/docker-compose.override.yml`
+(not the tracked `docker-compose.yml`, which only mounts the parent
+`apps-extra` dir — Docker doesn't resolve a symlink pointing outside a bind
+mount from inside the container, so the override mounts this repo directly
+at the app's container path). App path inside the container:
 `/var/www/html/apps-extra/employee_portal`. Default users: `admin`/`admin`,
 plus `alice`/`bob`/`jane`/`john`/`user1`-`user4` with matching passwords —
 useful for permission testing without creating throwaway accounts.
